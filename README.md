@@ -1,1 +1,1 @@
-# devops-artifacts
+# serverless-artifacts
