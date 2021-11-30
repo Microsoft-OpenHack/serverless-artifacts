@@ -1,0 +1,79 @@
+{
+    "Title": "microsoft-open-hack-serverless",
+    "Description": "OpenHack challenges for Azure Serverless",
+    "OverviewUrl": "00-Home.html",
+    "ContentVersion": "4.1",
+    "ContentPackage": {
+        "ContentItems": [
+            {
+                "Order": 1,
+                "Title": "Challenge 1: Development environment configuration",
+                "Description": "Configure your development environment.",
+                "Url": "01-Environment_Configuration.html"
+            },
+            {
+                "Order": 2,
+                "Follows": 1,
+                "Title": "Challenge 2: Create your first serverless function & workflow",
+                "Description": "Create your first serverless function & workflow.",
+                "Url": "02-First_Function_and_Logic_App.html"
+            },
+            {
+                "Order": 3,
+                "Follows": 2,
+                "Title": "Challenge 3: Finishing the Ice Cream Ratings API, and Continuous Integration and Deployment",
+                "Description": "Create the Ice Cream Ratings API and configure a build and release pipeline (CI/CD).",
+                "Url": "03-Create_API_and_DevOps.html"
+            },
+            {
+                "Order": 4,
+                "Follows": 3,
+                "Title": "Challenge 4: System telemetry and API Management",
+                "Description": "System telemetry and API Management.",
+                "Url": "04-Telemetry_and_API_Management.html"
+            },
+            {
+                "Order": 5,
+                "Follows": 4,
+                "Title": "Challenge 5: Distributor notification",
+                "Description": "Notify all distributors of the new ice cream line.",
+                "Url": "05-Distributor_Notification.html"
+            },
+            {
+                "Order": 6,
+                "Follows": 5,
+                "Title": "Challenge 6: Process distributor order batch files",
+                "Description": "Process distributor order batch files.",
+                "Url": "06-Batch_File_Processing.html"
+            },
+            {
+                "Order": 7,
+                "Follows": 6,
+                "Title": "Challenge 7: Process POS sales events",
+                "Description": "Process POS sales events.",
+                "Url": "07-Sales_Events_with_Event_Hubs.html"
+            },
+            {
+                "Order": 8,
+                "Follows": 7,
+                "Title": "Challenge 8: Pub/Sub and network integration",
+                "Description": "Publisher/subscriber messaging and network integration",
+                "Url": "08-PubSub_and_Network_Integration.html"
+            },
+            {
+                "Order": 9,
+                "Follows": 8,
+                "Title": "Challenge 9: Alerting and notification",
+                "Description": "Alerting and notification.",
+                "Url": "09-Alerting_and_Notification.html"
+            },
+            {
+                "Order": 10,
+                "Follows": 9,
+                "Title": "Challenge 10: Putting it all together",
+                "Description": "Data aggregation and reporting.",
+                "Url": "10-Data_Aggregation_and_Reporting.html"
+            }
+        ]
+    }
+}
