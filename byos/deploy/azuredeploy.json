@@ -1,0 +1,363 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.4.613.9944",
+      "templateHash": "8260122187381113932"
+    }
+  },
+  "parameters": {
+    "win10sku": {
+      "type": "string",
+      "defaultValue": "20h2-pro"
+    }
+  },
+  "functions": [],
+  "variables": {
+    "resourcePrefix": "soh",
+    "virtualNetworkName": "[format('{0}-vnet', variables('resourcePrefix'))]",
+    "nicName": "[format('{0}-jumpbox-nic', variables('resourcePrefix'))]",
+    "vnetAddressPrefix": "10.0.0.0/16",
+    "jumpboxSubnetName": "jumpbox",
+    "jumpboxSubnetAddress": "10.0.0.0/24",
+    "receiptEventProcessingSubnetName": "receipt-processing",
+    "receiptEventProcessingSubnetAddress": "10.0.1.0/24",
+    "salesEventProcessingSubnetName": "sale-processing",
+    "salesEventProcessingSubnetAddress": "10.0.2.0/24",
+    "pubsubSubnetName": "pub-sub-messages",
+    "pubsubSubnetAddress": "10.0.3.0/24",
+    "bastionSubnetAddress": "10.0.4.0/24",
+    "bastionPublicIpAddressName": "[format('{0}-bastion-pip', variables('resourcePrefix'))]",
+    "bastionHostName": "[format('{0}-bastion-host', variables('resourcePrefix'))]",
+    "virtualMachineName": "[format('{0}-jumpbox', variables('resourcePrefix'))]",
+    "virtualMachineAdminUsername": "serverless",
+    "virtualMachineAdminPassword": "Serverless4All!",
+    "vmDiagnosticStorageAccountName": "[format('{0}vmdiag{1}', variables('resourcePrefix'), uniqueString(resourceGroup().id))]",
+    "publicIPAddressName": "[format('{0}-jumpbox-pip', variables('resourcePrefix'))]",
+    "dnsLabelPrefix": "[format('{0}-jump-{1}', variables('resourcePrefix'), uniqueString(resourceGroup().id))]",
+    "jumpboxNsgName_var": "[format('{0}-jumpbox-nsg', variables('resourcePrefix'))]",
+    "salesDataStorageAccountName_var": "[format('{0}sales{1}', variables('resourcePrefix'), uniqueString(resourceGroup().id))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2019-04-01",
+      "name": "[variables('vmDiagnosticStorageAccountName')]",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "Storage",
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2019-04-01",
+      "name": "[variables('salesDataStorageAccountName_var')]",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "networkAcls": {
+          "bypass": "None",
+          "virtualNetworkRules": [
+            {
+              "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('receiptEventProcessingSubnetName'))]",
+              "action": "Allow"
+            },
+            {
+              "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('jumpboxSubnetName'))]",
+              "action": "Allow"
+            }
+          ],
+          "ipRules": [],
+          "defaultAction": "Deny"
+        },
+        "supportsHttpsTrafficOnly": true,
+        "accessTier": "Hot"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2019-04-01",
+      "name": "[format('{0}/default/receipts', variables('salesDataStorageAccountName_var'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('salesDataStorageAccountName_var'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2019-04-01",
+      "name": "[format('{0}/default/receipts-high-value', variables('salesDataStorageAccountName_var'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('salesDataStorageAccountName_var'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2019-03-01",
+      "name": "[variables('virtualMachineName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "Standard_D2_v3"
+        },
+        "osProfile": {
+          "computerName": "[variables('virtualMachineName')]",
+          "adminUsername": "[variables('virtualMachineAdminUsername')]",
+          "adminPassword": "[variables('virtualMachineAdminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "MicrosoftWindowsDesktop",
+            "offer": "Windows-10",
+            "sku": "[parameters('win10sku')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "createOption": "FromImage"
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Nework/networkInterfaces', variables('nicName'))]"
+            }
+          ]
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": true,
+            "storageUri": "[reference(resourceId('Microsoft.Storage/storageAccounts', variables('vmDiagnosticStorageAccountName'))).primaryEndpoints.blob]"
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('vmDiagnosticStorageAccountName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DevTestLab/schedules",
+      "apiVersion": "2018-09-15",
+      "name": "[format('shutdown-computevm-{0}', variables('virtualMachineName'))]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "status": "Enabled",
+        "taskType": "ComputeVmShutdownTask",
+        "dailyRecurrence": {
+          "time": "1900"
+        },
+        "timeZoneId": "UTC",
+        "notificationSettings": {
+          "status": "Disabled"
+        },
+        "targetResourceId": "[resourceId('Microsoft.Compute/virtualMachines', variables('virtualMachineName'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', variables('virtualMachineName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2019-07-01",
+      "name": "[variables('virtualNetworkName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('vnetAddressPrefix')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('receiptEventProcessingSubnetName')]",
+            "properties": {
+              "addressPrefix": "[variables('receiptEventProcessingSubnetAddress')]",
+              "serviceEndpoints": [
+                {
+                  "service": "Microsoft.Storage"
+                }
+              ],
+              "delegations": [
+                {
+                  "name": "delegation",
+                  "properties": {
+                    "serviceName": "Microsoft.Web/serverFarms"
+                  }
+                }
+              ],
+              "privateEndpointNetworkPolicies": "Enabled",
+              "privateLinkServiceNetworkPolicies": "Enabled"
+            }
+          },
+          {
+            "name": "[variables('salesEventProcessingSubnetName')]",
+            "properties": {
+              "addressPrefix": "[variables('salesEventProcessingSubnetAddress')]",
+              "delegations": [
+                {
+                  "name": "delegation",
+                  "properties": {
+                    "serviceName": "Microsoft.Web/serverFarms"
+                  }
+                }
+              ],
+              "privateEndpointNetworkPolicies": "Enabled",
+              "privateLinkServiceNetworkPolicies": "Enabled"
+            }
+          },
+          {
+            "name": "[variables('pubsubSubnetName')]",
+            "properties": {
+              "addressPrefix": "[variables('pubsubSubnetAddress')]",
+              "delegations": [],
+              "privateEndpointNetworkPolicies": "Enabled",
+              "privateLinkServiceNetworkPolicies": "Enabled"
+            }
+          },
+          {
+            "name": "[variables('jumpboxSubnetName')]",
+            "properties": {
+              "addressPrefix": "[variables('jumpboxSubnetAddress')]",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('jumpboxNsgName_var'))]"
+              },
+              "serviceEndpoints": [
+                {
+                  "service": "Microsoft.Storage"
+                }
+              ],
+              "delegations": [],
+              "privateEndpointNetworkPolicies": "Enabled",
+              "privateLinkServiceNetworkPolicies": "Enabled"
+            }
+          }
+        ],
+        "virtualNetworkPeerings": [],
+        "enableDdosProtection": false,
+        "enableVmProtection": false
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('jumpboxNsgName_var'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2021-02-01",
+      "name": "[format('{0}/AzureBastionSubnet', variables('virtualNetworkName'))]",
+      "properties": {
+        "addressPrefix": "[variables('bastionSubnetAddress')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2021-02-01",
+      "name": "[variables('bastionPublicIpAddressName')]",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static"
+      }
+    },
+    {
+      "type": "Microsoft.Network/bastionHosts",
+      "apiVersion": "2021-02-01",
+      "name": "[variables('bastionHostName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipConfig",
+            "properties": {
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', split(format('{0}/AzureBastionSubnet', variables('virtualNetworkName')), '/')[0], split(format('{0}/AzureBastionSubnet', variables('virtualNetworkName')), '/')[1])]"
+              },
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('bastionPublicIpAddressName'))]"
+              }
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', split(format('{0}/AzureBastionSubnet', variables('virtualNetworkName')), '/')[0], split(format('{0}/AzureBastionSubnet', variables('virtualNetworkName')), '/')[1])]",
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('bastionPublicIpAddressName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2018-11-01",
+      "name": "[variables('nicName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName'))]"
+              },
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('jumpboxSubnetName'))]"
+              }
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2019-04-01",
+      "name": "[variables('jumpboxNsgName_var')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "Block_RDP_Internet",
+            "properties": {
+              "description": "Block RDP",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "3389",
+              "sourceAddressPrefix": "Internet",
+              "destinationAddressPrefix": "*",
+              "access": "Deny",
+              "priority": 101,
+              "direction": "Inbound"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2018-11-01",
+      "name": "[variables('publicIPAddressName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic",
+        "dnsSettings": {
+          "domainNameLabel": "[variables('dnsLabelPrefix')]"
+        }
+      }
+    }
+  ]
+}
