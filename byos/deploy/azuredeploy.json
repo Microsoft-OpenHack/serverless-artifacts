@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.4.613.9944",
-      "templateHash": "8260122187381113932"
+      "version": "0.4.1124.51302",
+      "templateHash": "9663665978510288924"
     }
   },
   "parameters": {
@@ -14,7 +14,6 @@
       "defaultValue": "20h2-pro"
     }
   },
-  "functions": [],
   "variables": {
     "resourcePrefix": "soh",
     "virtualNetworkName": "[format('{0}-vnet', variables('resourcePrefix'))]",
@@ -28,7 +27,7 @@
     "salesEventProcessingSubnetAddress": "10.0.2.0/24",
     "pubsubSubnetName": "pub-sub-messages",
     "pubsubSubnetAddress": "10.0.3.0/24",
-    "bastionSubnetAddress": "10.0.4.0/24",
+    "bastionSubnetAddress": "10.0.4.0/26",
     "bastionPublicIpAddressName": "[format('{0}-bastion-pip', variables('resourcePrefix'))]",
     "bastionHostName": "[format('{0}-bastion-host', variables('resourcePrefix'))]",
     "virtualMachineName": "[format('{0}-jumpbox', variables('resourcePrefix'))]",
@@ -186,14 +185,7 @@
                   "service": "Microsoft.Storage"
                 }
               ],
-              "delegations": [
-                {
-                  "name": "delegation",
-                  "properties": {
-                    "serviceName": "Microsoft.Web/serverFarms"
-                  }
-                }
-              ],
+              "delegations": [],
               "privateEndpointNetworkPolicies": "Enabled",
               "privateLinkServiceNetworkPolicies": "Enabled"
             }
@@ -202,14 +194,12 @@
             "name": "[variables('salesEventProcessingSubnetName')]",
             "properties": {
               "addressPrefix": "[variables('salesEventProcessingSubnetAddress')]",
-              "delegations": [
+              "serviceEndpoints": [
                 {
-                  "name": "delegation",
-                  "properties": {
-                    "serviceName": "Microsoft.Web/serverFarms"
-                  }
+                  "service": "Microsoft.Storage"
                 }
               ],
+              "delegations": [],
               "privateEndpointNetworkPolicies": "Enabled",
               "privateLinkServiceNetworkPolicies": "Enabled"
             }
